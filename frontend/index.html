@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blind Test Challenge</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; }
+        #game-stats { margin: 20px; font-size: 1.2em; }
+        #answer-container { margin-top: 20px; }
+        strong { color: #007bff; }
+    </style>
+</head>
+<body>
+
+    <h1>Blind Test Challenge</h1>
+
+    <div id="game-stats">
+        <span>Score: <strong id="score">0</strong></span> |
+        <span>Vies: <strong id="lives-display">3</strong></span> |
+        <span>Fragments de cœur: <strong id="hearts-display">0/5</strong></span>
+    </div>
+
+    <audio id="audio-player"></audio>
+    
+    <hr>
+    
+    <div id="answer-container">
+        <input type="text" id="answer-input" placeholder="Artiste et/ou titre..." size="40">
+        <button id="submit-btn">Valider</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
