@@ -25,14 +25,17 @@ app.get('/', (req, res) => {
   res.send('Le serveur du Blind Test Challenge est en ligne !');
 });
 
+// v v v REMPLACEZ L'ANCIENNE ROUTE PAR CELLE-CI v v v
 app.get('/random-song', async (req, res) => {
-  try {
-    const listObjectsResponse = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Prefix: 'musiques/',
-      })
-    );
+  // On ajoute un log pour être sûr que la route est bien appelée
+  console.log("--- La route /random-song a été atteinte avec succès ! ---");
+
+  // On envoie une fausse réponse, sans contacter R2
+  res.json({
+    fileName: "Artiste-Test_Titre-Test_2025_Pop.opus",
+    url: "url_factice", // L'URL n'a pas d'importance pour ce test
+  });
+});
 
     const allObjects = listObjectsResponse.Contents;
     if (!allObjects || allObjects.length === 0) {
