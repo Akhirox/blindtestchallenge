@@ -6,30 +6,63 @@
     <title>Blind Test Challenge</title>
     <style>
         body { font-family: sans-serif; text-align: center; }
-        #game-stats { margin: 20px; font-size: 1.2em; }
-        #answer-container { margin-top: 20px; }
+        #game-stats { margin: 20px 0; font-size: 1.2em; }
         strong { color: #007bff; }
+        #game-container, #answer-screen, #game-over-screen { display: none; }
+        #answer-screen { padding: 20px; }
+        #game-over-screen { padding: 50px; }
+        #filter-container { margin: 20px; padding: 10px; border: 1px solid #ccc; }
+        .filter-group { margin: 10px; }
+        .filter-group label { margin-right: 10px; }
     </style>
 </head>
 <body>
-
     <h1>Blind Test Challenge</h1>
 
-    <div id="game-stats">
-        <span>Score: <strong id="score">0</strong></span> |
-        <span>Vies: <strong id="lives-display">3</strong></span> |
-        <span>Fragments de cœur: <strong id="hearts-display">0/5</strong></span>
+    <div id="start-screen">
+        <div id="filter-container">
+            <h4>Filtrez les musiques (optionnel)</h4>
+            <div id="decades-filters" class="filter-group"></div>
+            <div id="genres-filters" class="filter-group"></div>
+        </div>
+        <button id="start-game-btn" style="font-size: 1.5em; padding: 10px 20px;">Démarrer la partie</button>
     </div>
 
-    <audio id="audio-player"></audio>
-    
-    <hr>
-    
-    <div id="answer-container">
-        <input type="text" id="answer-input" placeholder="Artiste et/ou titre..." size="40">
-        <button id="submit-btn">Valider</button>
+    <div id="game-container">
+        <div id="game-stats">
+            <span>Vies: <strong id="lives-display">3</strong></span> |
+            <span>Fragments de cœur: <strong id="hearts-display">0/5</strong></span> |
+            <span>Temps: <strong id="timer-display">30</strong></span> |
+            <span>Volume: <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5"></span>
+        </div>
+        <audio id="audio-player"></audio>
+        
+        <div id="round-content">
+            <hr>
+            <div id="feedback-icons">
+                <span id="artist-feedback">Artiste: ❌</span> | 
+                <span id="title-feedback">Titre: ❌</span>
+            </div>
+            <div id="answer-container">
+                <input type="text" id="answer-input" placeholder="Artiste et/ou titre..." size="40">
+                <button id="submit-btn">Valider</button>
+            </div>
+        </div>
     </div>
 
+    <div id="answer-screen">
+        <h2>La réponse était :</h2>
+        <h3 id="correct-answer-display">Artiste - Titre</h3>
+        <p id="round-summary-message">Récapitulatif.</p>
+        <p>Prochain round...</p>
+    </div>
+
+    <div id="game-over-screen">
+        <h2>Partie Terminée</h2>
+        <h3>Vous avez survécu <strong id="final-score">0</strong> rounds !</h3>
+        <button id="restart-btn" style="font-size: 1.2em; padding: 10px 20px;">Rejouer</button>
+    </div>
+    
     <script src="app.js"></script>
 </body>
 </html>
