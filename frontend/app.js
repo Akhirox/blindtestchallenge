@@ -22,10 +22,13 @@ const roundSummaryMessage = document.getElementById('round-summary-message');
 const gameOverScreen = document.getElementById('game-over-screen');
 const finalScoreDisplay = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
-// Nouveaux éléments pour les filtres et le contenu du round
 const roundContent = document.getElementById('round-content');
 const decadesFiltersDiv = document.getElementById('decades-filters');
 const genresFiltersDiv = document.getElementById('genres-filters');
+// NOUVEAUX ÉLÉMENTS
+const selectAllBtn = document.getElementById('select-all-btn');
+const deselectAllBtn = document.getElementById('deselect-all-btn');
+const songCountDiv = document.getElementById('song-count');
 
 
 // --- VARIABLES DU JEU ---
@@ -34,73 +37,68 @@ let cleanArtist = '', cleanTitle = '';
 let normalizedArtist = '', normalizedTitle = '';
 let artistIsFound = false, titleIsFound = false;
 let roundTimer, timeLeft = ROUND_DURATION;
-let currentFilters = ''; // Stockera les filtres pour la partie en cours
+let currentFilters = '';
+let masterSongList = []; // Pour stocker la liste complète des chansons
 
 // --- FONCTIONS UTILITAIRES ---
-
-function normalizeString(str) {
-    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function levenshtein(s1, s2) {
-    s1 = s1.toLowerCase();
-    s2 = s2.toLowerCase();
-    const costs = [];
-    for (let i = 0; i <= s1.length; i++) {
-        let lastValue = i;
-        for (let j = 0; j <= s2.length; j++) {
-            if (i === 0) costs[j] = j;
-            else {
-                if (j > 0) {
-                    let newValue = costs[j - 1];
-                    if (s1.charAt(i - 1) !== s2.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-                    costs[j - 1] = lastValue;
-                    lastValue = newValue;
-                }
-            }
-        }
-        if (i > 0) costs[s2.length] = lastValue;
-    }
-    return costs[s2.length];
-}
-
-function isSimilar(userInput, correctAnswer) {
-    const userWords = userInput.split(' ');
-    const correctWords = correctAnswer.split(' ');
-    const tolerance = 1;
-
-    return correctWords.every(correctWord =>
-        userWords.some(userWord => levenshtein(userWord, correctWord) <= tolerance)
-    );
-}
-
+function normalizeString(str) { return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function levenshtein(s1, s2) { s1 = s1.toLowerCase(); s2 = s2.toLowerCase(); const costs = []; for (let i = 0; i <= s1.length; i++) { let lastValue = i; for (let j = 0; j <= s2.length; j++) { if (i === 0) costs[j] = j; else { if (j > 0) { let newValue = costs[j - 1]; if (s1.charAt(i - 1) !== s2.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1; costs[j - 1] = lastValue; lastValue = newValue; } } } if (i > 0) costs[s2.length] = lastValue; } return costs[s2.length]; }
+function isSimilar(userInput, correctAnswer) { const userWords = userInput.split(' '); const correctWords = correctAnswer.split(' '); const tolerance = 1; return correctWords.every(correctWord => userWords.some(userWord => levenshtein(userWord, correctWord) <= tolerance)); }
 
 // --- FONCTIONS DU JEU ---
-
 function updateUI() {
-    livesDisplay.textContent = lives;
-    heartsDisplay.textContent = `${heartFragments}/5`;
-    timerDisplay.textContent = timeLeft;
-    artistFeedback.textContent = `Artiste: ${artistIsFound ? '✅' : '❌'}`;
-    titleFeedback.textContent = `Titre: ${titleIsFound ? '✅' : '❌'}`;
+    if(livesDisplay) livesDisplay.textContent = lives;
+    if(heartsDisplay) heartsDisplay.textContent = `${heartFragments}/5`;
+    if(timerDisplay) timerDisplay.textContent = timeLeft;
+    if(artistFeedback) artistFeedback.textContent = `Artiste: ${artistIsFound ? '✅' : '❌'}`;
+    if(titleFeedback) titleFeedback.textContent = `Titre: ${titleIsFound ? '✅' : '❌'}`;
+}
+function showGameOver() { gameContainer.style.display = 'none'; answerScreen.style.display = 'none'; finalScoreDisplay.textContent = roundsSurvived; gameOverScreen.style.display = 'block'; }
+function stopTimer() { clearInterval(roundTimer); }
+
+// NOUVELLE FONCTION : Met à jour le compteur de chansons
+function updateAvailableSongsCount() {
+    const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => parseInt(cb.value, 10));
+    const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
+    const allDecadesSelected = selectedDecades.length === 0;
+    const allGenresSelected = selectedGenres.length === 0;
+
+    const filteredCount = masterSongList.filter(song => {
+        const decadeMatch = allDecadesSelected || selectedDecades.includes(song.decade);
+        const genreMatch = allGenresSelected || selectedGenres.includes(song.genre);
+        return decadeMatch && genreMatch;
+    }).length;
+
+    songCountDiv.textContent = `Chansons disponibles: ${filteredCount}`;
 }
 
-function showGameOver() {
-    gameContainer.style.display = 'none';
-    answerScreen.style.display = 'none';
-    finalScoreDisplay.textContent = roundsSurvived;
-    gameOverScreen.style.display = 'block';
-}
+// MODIFIÉE : La fonction populateFilters gère maintenant les comptes et les listeners
+async function populateFilters() {
+    try {
+        const response = await fetch(`${API_URL}/metadata`);
+        if (!response.ok) throw new Error('Impossible de charger les métadonnées');
+        const { decades, genres, songList } = await response.json();
+        
+        masterSongList = songList;
 
-function stopTimer() {
-    clearInterval(roundTimer);
+        decadesFiltersDiv.innerHTML = '<strong>Décennies:</strong><br>' + Object.entries(decades).map(([d, count]) => `<label><input type="checkbox" name="decade" value="${d}"> ${d}s (${count})</label>`).join('');
+        genresFiltersDiv.innerHTML = '<strong>Genres:</strong><br>' + Object.entries(genres).map(([g, count]) => `<label><input type="checkbox" name="genre" value="${g}"> ${g} (${count})</label>`).join('');
+        
+        document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', updateAvailableSongsCount);
+        });
+        
+        updateAvailableSongsCount();
+    } catch (error) {
+        console.error("Impossible de charger les filtres:", error);
+        document.getElementById('filter-container').innerHTML = "<p>Impossible de charger les options de filtre.</p>";
+    }
 }
 
 function endRound() {
     stopTimer();
     audioPlayer.pause();
     let summary = '';
-
     if (artistIsFound && titleIsFound) {
         summary = "Bravo ! Vous avez gagné un fragment de cœur !";
         heartFragments++;
@@ -115,22 +113,15 @@ function endRound() {
         lives--;
         summary = `Vous perdez une vie. Vies restantes : ${lives}`;
     }
-    
     updateUI();
-
-    if (lives <= 0) {
-        showGameOver();
-        return;
-    }
-
+    if (lives <= 0) { showGameOver(); return; }
     correctAnswerDisplay.textContent = `${cleanArtist} - ${cleanTitle}`;
     roundSummaryMessage.textContent = summary;
-    roundContent.style.display = 'none'; // On cache juste le contenu du round
+    roundContent.style.display = 'none';
     answerScreen.style.display = 'block';
-
     setTimeout(() => {
         answerScreen.style.display = 'none';
-        roundContent.style.display = 'block'; // On réaffiche le contenu
+        roundContent.style.display = 'block';
         startRound();
     }, ANSWER_SCREEN_DURATION);
 }
@@ -153,35 +144,30 @@ async function startRound() {
     answerInput.focus();
     artistIsFound = false;
     titleIsFound = false;
+    updateUI();
     
     try {
         const response = await fetch(`${API_URL}/random-song?${currentFilters}`);
         if (!response.ok) {
-            // Gère le cas où aucun titre ne correspond aux filtres
             if(response.status === 404) throw new Error('404');
             else throw new Error('Erreur réseau');
         }
         const song = await response.json();
-        
         const parts = song.fileName.replace('musiques/', '').split('_');
         
-        if (parts.length < 2) {
+        if (parts.length < 4) {
             console.error(`Fichier mal nommé détecté et ignoré : ${song.fileName}`);
             startRound();
             return;
         }
-
         cleanArtist = parts[0].replace(/-/g, ' ');
         cleanTitle = parts[1].replace(/-/g, ' ');
         normalizedArtist = normalizeString(cleanArtist);
         normalizedTitle = normalizeString(cleanTitle);
-
         console.log(`Réponse cachée -> Artiste: ${cleanArtist}, Titre: ${cleanTitle}`);
-
         audioPlayer.src = song.url;
         audioPlayer.play();
         startTimer();
-
     } catch (error) {
         if (error.message === '404') {
              alert("Aucune chanson ne correspond à vos filtres. Veuillez élargir votre sélection.");
@@ -197,51 +183,50 @@ function checkAnswer() {
     if (lives <= 0) return;
     const userAnswer = normalizeString(answerInput.value);
     if (userAnswer.length === 0) return;
-
     if (!artistIsFound && isSimilar(userAnswer, normalizedArtist)) artistIsFound = true;
     if (!titleIsFound && isSimilar(userAnswer, normalizedTitle)) titleIsFound = true;
-    
     updateUI();
     answerInput.value = '';
     answerInput.focus();
-
     if (artistIsFound && titleIsFound) {
         endRound();
     }
 }
 
-async function populateFilters() {
-    try {
-        const response = await fetch(`${API_URL}/metadata`);
-        if (!response.ok) throw new Error('Impossible de charger les métadonnées');
-        const { decades, genres } = await response.json();
-        
-        decadesFiltersDiv.innerHTML = '<strong>Décennies:</strong> ' + decades.map(d => `<label><input type="checkbox" name="decade" value="${d}"> ${d}s</label>`).join('');
-        genresFiltersDiv.innerHTML = '<strong>Genres:</strong> ' + genres.map(g => `<label><input type="checkbox" name="genre" value="${g}"> ${g}</label>`).join('');
-    } catch (error) {
-        console.error("Impossible de charger les filtres:", error);
-        document.getElementById('filter-container').innerHTML = "<p>Impossible de charger les options de filtre.</p>";
-    }
+// --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+
+// On ajoute des vérifications pour s'assurer que les éléments existent avant d'ajouter des écouteurs
+
+if (submitButton) {
+    submitButton.addEventListener('click', checkAnswer);
 }
 
+if (answerInput) {
+    answerInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') checkAnswer();
+    });
+}
 
-// --- ÉCOUTEURS D'ÉVÉNEMENTS ---
-submitButton.addEventListener('click', checkAnswer);
-answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
+if (startGameBtn) {
+    startGameBtn.addEventListener('click', () => {
+        const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value);
+        const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
+        
+        if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) {
+            alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres.");
+            return;
+        }
 
-startGameBtn.addEventListener('click', () => {
-    const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value);
-    const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
-    
-    const params = new URLSearchParams();
-    if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(','));
-    if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
-    currentFilters = params.toString();
+        const params = new URLSearchParams();
+        if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(','));
+        if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
+        currentFilters = params.toString();
 
-    startScreen.style.display = 'none';
-    gameContainer.style.display = 'block';
-    startRound();
-});
+        startScreen.style.display = 'none';
+        gameContainer.style.display = 'block';
+        startRound();
+    });
+}
 
 if (restartBtn) {
     restartBtn.addEventListener('click', () => {
@@ -249,8 +234,30 @@ if (restartBtn) {
     });
 }
 
-audioPlayer.volume = volumeSlider.value;
-volumeSlider.addEventListener('input', () => { audioPlayer.volume = volumeSlider.value; });
+if (volumeSlider) {
+    volumeSlider.addEventListener('input', () => {
+        audioPlayer.volume = volumeSlider.value;
+    });
+}
+
+// CORRECTION PRINCIPALE ICI
+if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        updateAvailableSongsCount();
+    });
+}
+
+if (deselectAllBtn) {
+    deselectAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateAvailableSongsCount();
+    });
+}
 
 // --- INITIALISATION ---
 updateUI();
