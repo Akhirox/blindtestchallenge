@@ -1,3 +1,4 @@
+console.log("--- VERSION DU SERVEUR AVEC CORS ET RANDOM-SONG ---");
 // --- Imports ---
 const express = require('express');
 const cors = require('cors'); // <--- NOUVELLE LIGNE
