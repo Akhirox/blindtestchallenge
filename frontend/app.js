@@ -31,12 +31,13 @@ const songCountDiv = document.getElementById('song-count');
 const pseudoInput = document.getElementById('pseudo-input');
 const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
 const leaderboardScreen = document.getElementById('leaderboard-screen');
-const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
-const timerBar = document.getElementById('timer-bar');
-// NOUVEAUX ÉLÉMENTS
-const roundDisplay = document.getElementById('round-display');
 const leaderboardPodium = document.getElementById('leaderboard-podium');
 const leaderboardOthers = document.getElementById('leaderboard-others');
+const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
+const timerBar = document.getElementById('timer-bar');
+const roundDisplay = document.getElementById('round-display');
+const viewLeaderboardBtnGameover = document.getElementById('view-leaderboard-btn-gameover');
+const songSummaryList = document.getElementById('song-summary-list');
 
 // --- VARIABLES DU JEU ---
 let lives = 3, heartFragments = 0, roundsSurvived = 0;
@@ -46,7 +47,8 @@ let artistIsFound = false, titleIsFound = false;
 let roundTimer, timeLeft = ROUND_DURATION;
 let currentFilters = '';
 let masterSongList = [];
-let isGameOver = false; // Pour savoir si on est sur l'écran de fin
+let isGameOver = false;
+let playedSongs = [];
 
 // --- FONCTIONS UTILITAIRES ---
 function normalizeString(str) { return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -80,11 +82,14 @@ async function showGameOver() {
     answerScreen.style.display = 'none';
     const finalRounds = roundsSurvived > 0 ? roundsSurvived - 1 : 0;
     finalScoreDisplay.textContent = finalRounds;
-    gameOverScreen.style.display = 'block';
 
+    if (songSummaryList) {
+        songSummaryList.innerHTML = playedSongs.map(song => `<li>${song.artist} - ${song.title}</li>`).join('');
+    }
+
+    gameOverScreen.style.display = 'block';
     const pseudo = pseudoInput.value || 'Anonyme';
     const score = finalRounds;
-
     try {
         await fetch(`${API_URL}/scores`, {
             method: 'POST',
@@ -213,7 +218,9 @@ async function startRound() {
         cleanTitle = parts[1].replace(/-/g, ' ');
         normalizedArtist = normalizeString(cleanArtist);
         normalizedTitle = normalizeString(cleanTitle);
-        console.log(`Réponse cachée -> Artiste: ${cleanArtist}, Titre: ${cleanTitle}`);
+        
+        playedSongs.push({ artist: cleanArtist, title: cleanTitle });
+
         audioPlayer.src = song.url;
         audioPlayer.play();
         startTimer();
@@ -238,12 +245,33 @@ function checkAnswer() {
 // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
 if (submitButton) submitButton.addEventListener('click', checkAnswer);
 if (answerInput) answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
-if (startGameBtn) { startGameBtn.addEventListener('click', () => { if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; } const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value); const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value); if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) { alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres."); return; } const params = new URLSearchParams(); if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(',')); if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(',')); currentFilters = params.toString(); startScreen.style.display = 'none'; gameContainer.style.display = 'block'; startRound(); }); }
-if (restartBtn) { restartBtn.addEventListener('click', () => { isGameOver = false; roundsSurvived = 0; lives = 3; heartFragments = 0; gameOverScreen.style.display = 'none'; startScreen.style.display = 'block'; updateUI(); }); }
+if (startGameBtn) { startGameBtn.addEventListener('click', () => { 
+    if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; } 
+    playedSongs = [];
+    roundsSurvived = 0;
+    lives = 3;
+    heartFragments = 0;
+    const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value); 
+    const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value); 
+    if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) { alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres."); return; } 
+    const params = new URLSearchParams(); 
+    if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(',')); 
+    if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(',')); 
+    currentFilters = params.toString(); 
+    startScreen.style.display = 'none'; 
+    gameContainer.style.display = 'block'; 
+    startRound(); 
+}); }
+if (restartBtn) { restartBtn.addEventListener('click', () => { 
+    isGameOver = false; 
+    gameOverScreen.style.display = 'none'; 
+    startScreen.style.display = 'block'; 
+}); }
 if (volumeSlider) volumeSlider.addEventListener('input', () => { audioPlayer.volume = volumeSlider.value; });
 if (selectAllBtn) selectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true); updateAvailableSongsCount(); });
 if (deselectAllBtn) deselectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = false); updateAvailableSongsCount(); });
 if (viewLeaderboardBtn) viewLeaderboardBtn.addEventListener('click', showLeaderboard);
+if (viewLeaderboardBtnGameover) viewLeaderboardBtnGameover.addEventListener('click', showLeaderboard);
 if (closeLeaderboardBtn) { closeLeaderboardBtn.addEventListener('click', () => { leaderboardScreen.style.display = 'none'; if (isGameOver) { gameOverScreen.style.display = 'block'; } else { startScreen.style.display = 'block'; } }); }
 
 // --- INITIALISATION ---
