@@ -28,13 +28,15 @@ const genresFiltersDiv = document.getElementById('genres-filters');
 const selectAllBtn = document.getElementById('select-all-btn');
 const deselectAllBtn = document.getElementById('deselect-all-btn');
 const songCountDiv = document.getElementById('song-count');
-// NOUVEAUX ÉLÉMENTS POUR LE LEADERBOARD
 const pseudoInput = document.getElementById('pseudo-input');
 const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
 const leaderboardScreen = document.getElementById('leaderboard-screen');
-const leaderboardList = document.getElementById('leaderboard-list');
 const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
-
+const timerBar = document.getElementById('timer-bar');
+// NOUVEAUX ÉLÉMENTS
+const roundDisplay = document.getElementById('round-display');
+const leaderboardPodium = document.getElementById('leaderboard-podium');
+const leaderboardOthers = document.getElementById('leaderboard-others');
 
 // --- VARIABLES DU JEU ---
 let lives = 3, heartFragments = 0, roundsSurvived = 0;
@@ -44,6 +46,7 @@ let artistIsFound = false, titleIsFound = false;
 let roundTimer, timeLeft = ROUND_DURATION;
 let currentFilters = '';
 let masterSongList = [];
+let isGameOver = false; // Pour savoir si on est sur l'écran de fin
 
 // --- FONCTIONS UTILITAIRES ---
 function normalizeString(str) { return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -52,22 +55,35 @@ function isSimilar(userInput, correctAnswer) { const userWords = userInput.split
 
 // --- FONCTIONS DU JEU ---
 function updateUI() {
-    if(livesDisplay) livesDisplay.textContent = lives;
-    if(heartsDisplay) heartsDisplay.textContent = `${heartFragments}/5`;
-    if(timerDisplay) timerDisplay.textContent = timeLeft;
-    if(artistFeedback) artistFeedback.textContent = `Artiste: ${artistIsFound ? '✅' : '❌'}`;
-    if(titleFeedback) titleFeedback.textContent = `Titre: ${titleIsFound ? '✅' : '❌'}`;
+    if (roundDisplay) roundDisplay.textContent = roundsSurvived;
+    if (livesDisplay) livesDisplay.textContent = lives;
+    if (heartsDisplay) heartsDisplay.textContent = `${heartFragments}/5`;
+    if (timerDisplay) timerDisplay.textContent = timeLeft;
+    if (artistFeedback) artistFeedback.textContent = `Artiste: ${artistIsFound ? '✅' : '❌'}`;
+    if (titleFeedback) titleFeedback.textContent = `Titre: ${titleIsFound ? '✅' : '❌'}`;
+    if (timerBar) {
+        const percentage = (timeLeft / ROUND_DURATION) * 100;
+        timerBar.style.width = `${percentage}%`;
+        if (percentage < 25) {
+            timerBar.className = 'bg-red-500 h-4 rounded-full transition-all duration-500';
+        } else if (percentage < 50) {
+            timerBar.className = 'bg-yellow-500 h-4 rounded-full transition-all duration-500';
+        } else {
+            timerBar.className = 'bg-green-500 h-4 rounded-full transition-all duration-500';
+        }
+    }
 }
 
 async function showGameOver() {
+    isGameOver = true;
     gameContainer.style.display = 'none';
     answerScreen.style.display = 'none';
-    finalScoreDisplay.textContent = roundsSurvived;
+    const finalRounds = roundsSurvived > 0 ? roundsSurvived - 1 : 0;
+    finalScoreDisplay.textContent = finalRounds;
     gameOverScreen.style.display = 'block';
 
-    // Sauvegarde du score
     const pseudo = pseudoInput.value || 'Anonyme';
-    const score = roundsSurvived;
+    const score = finalRounds;
 
     try {
         await fetch(`${API_URL}/scores`, {
@@ -87,7 +103,17 @@ async function showLeaderboard() {
         if (!response.ok) throw new Error("Réponse du serveur non valide");
         const scores = await response.json();
 
-        leaderboardList.innerHTML = scores.map((s, index) => `<li>#${index + 1} ${s.pseudo} - ${s.score} rounds</li>`).join('');
+        const top3 = scores.slice(0, 3);
+        const others = scores.slice(3);
+
+        const podiumHTML = top3.map((s, index) => {
+            if (index === 0) return `<div class="text-center order-2"><div class="text-4xl">🥇</div><div class="font-bold text-2xl text-yellow-300">${s.pseudo}</div><div class="text-xl">${s.score} rounds</div></div>`;
+            if (index === 1) return `<div class="text-center order-1 mt-4"><div class="text-3xl">🥈</div><div class="font-bold text-xl text-gray-300">${s.pseudo}</div><div class="text-lg">${s.score} rounds</div></div>`;
+            return `<div class="text-center order-3 mt-6"><div class="text-2xl">🥉</div><div class="font-bold text-lg text-yellow-600">${s.pseudo}</div><div>${s.score} rounds</div></div>`;
+        }).join('');
+
+        leaderboardPodium.innerHTML = podiumHTML;
+        leaderboardOthers.innerHTML = others.map((s, index) => `<li class="p-2 rounded-md bg-gray-700/50 flex justify-between"><span>#${index + 4} ${s.pseudo}</span> <span>${s.score} rounds</span></li>`).join('');
         
         startScreen.style.display = 'none';
         gameContainer.style.display = 'none';
@@ -106,14 +132,12 @@ function updateAvailableSongsCount() {
     const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
     const allDecadesSelected = selectedDecades.length === 0;
     const allGenresSelected = selectedGenres.length === 0;
-
     const filteredCount = masterSongList.filter(song => {
         const decadeMatch = allDecadesSelected || selectedDecades.includes(song.decade);
         const genreMatch = allGenresSelected || selectedGenres.includes(song.genre);
         return decadeMatch && genreMatch;
     }).length;
-
-    if(songCountDiv) songCountDiv.textContent = `Chansons disponibles: ${filteredCount}`;
+    if (songCountDiv) songCountDiv.textContent = `Chansons disponibles: ${filteredCount}`;
 }
 
 async function populateFilters() {
@@ -122,13 +146,13 @@ async function populateFilters() {
         if (!response.ok) throw new Error('Impossible de charger les métadonnées');
         const { decades, genres, songList } = await response.json();
         masterSongList = songList;
-        decadesFiltersDiv.innerHTML = '<strong>Décennies:</strong><br>' + Object.entries(decades).map(([d, count]) => `<label><input type="checkbox" name="decade" value="${d}"> ${d}s (${count})</label>`).join('');
-        genresFiltersDiv.innerHTML = '<strong>Genres:</strong><br>' + Object.entries(genres).map(([g, count]) => `<label><input type="checkbox" name="genre" value="${g}"> ${g} (${count})</label>`).join('');
+        decadesFiltersDiv.innerHTML = '<strong>Décennies:</strong><br>' + Object.entries(decades).map(([d, count]) => `<label class="mr-4"><input type="checkbox" name="decade" value="${d}"> ${d}s (${count})</label>`).join('');
+        genresFiltersDiv.innerHTML = '<strong>Genres:</strong><br>' + Object.entries(genres).map(([g, count]) => `<label class="mr-4"><input type="checkbox" name="genre" value="${g}"> ${g} (${count})</label>`).join('');
         document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.addEventListener('change', updateAvailableSongsCount));
         updateAvailableSongsCount();
     } catch (error) {
         console.error("Impossible de charger les filtres:", error);
-        if(document.getElementById('filter-container')) document.getElementById('filter-container').innerHTML = "<p>Impossible de charger les options de filtre.</p>";
+        if (document.getElementById('filter-container')) document.getElementById('filter-container').innerHTML = "<p>Impossible de charger les options de filtre.</p>";
     }
 }
 
@@ -139,11 +163,7 @@ function endRound() {
     if (artistIsFound && titleIsFound) {
         summary = "Bravo ! Vous avez gagné un fragment de cœur !";
         heartFragments++;
-        if (heartFragments >= 5) {
-            lives++;
-            heartFragments = 0;
-            summary += " Vous gagnez une vie supplémentaire !";
-        }
+        if (heartFragments >= 5) { lives++; heartFragments = 0; summary += " Vous gagnez une vie supplémentaire !"; }
     } else if (artistIsFound || titleIsFound) {
         summary = "Vous n'avez pas perdu de vie.";
     } else {
@@ -151,12 +171,7 @@ function endRound() {
         summary = `Vous perdez une vie. Vies restantes : ${lives}`;
     }
     updateUI();
-
-    if (lives <= 0) {
-        showGameOver();
-        return;
-    }
-
+    if (lives <= 0) { showGameOver(); return; }
     correctAnswerDisplay.textContent = `${cleanArtist} - ${cleanTitle}`;
     roundSummaryMessage.textContent = summary;
     roundContent.style.display = 'none';
@@ -174,9 +189,7 @@ function startTimer() {
     roundTimer = setInterval(() => {
         timeLeft--;
         updateUI();
-        if (timeLeft <= 0) {
-            endRound();
-        }
+        if (timeLeft <= 0) { endRound(); }
     }, 1000);
 }
 
@@ -187,7 +200,6 @@ async function startRound() {
     artistIsFound = false;
     titleIsFound = false;
     updateUI();
-    
     try {
         const response = await fetch(`${API_URL}/random-song?${currentFilters}`);
         if (!response.ok) {
@@ -196,12 +208,7 @@ async function startRound() {
         }
         const song = await response.json();
         const parts = song.fileName.replace('musiques/', '').split('_');
-        
-        if (parts.length < 4) {
-            console.error(`Fichier mal nommé détecté et ignoré : ${song.fileName}`);
-            startRound();
-            return;
-        }
+        if (parts.length < 4) { console.error(`Fichier mal nommé détecté et ignoré : ${song.fileName}`); startRound(); return; }
         cleanArtist = parts[0].replace(/-/g, ' ');
         cleanTitle = parts[1].replace(/-/g, ' ');
         normalizedArtist = normalizeString(cleanArtist);
@@ -211,13 +218,8 @@ async function startRound() {
         audioPlayer.play();
         startTimer();
     } catch (error) {
-        if (error.message === '404') {
-             alert("Aucune chanson ne correspond à vos filtres. Veuillez élargir votre sélection.");
-             window.location.reload();
-        } else {
-            console.error("Impossible de charger la chanson:", error);
-            alert("Erreur de chargement.");
-        }
+        if (error.message === '404') { alert("Aucune chanson ne correspond à vos filtres. Veuillez élargir votre sélection."); window.location.reload(); }
+        else { console.error("Impossible de charger la chanson:", error); alert("Erreur de chargement."); }
     }
 }
 
@@ -230,51 +232,21 @@ function checkAnswer() {
     updateUI();
     answerInput.value = '';
     answerInput.focus();
-    if (artistIsFound && titleIsFound) {
-        endRound();
-    }
+    if (artistIsFound && titleIsFound) { endRound(); }
 }
 
 // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
-if(submitButton) submitButton.addEventListener('click', checkAnswer);
-if(answerInput) answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
-
-if(startGameBtn) {
-    startGameBtn.addEventListener('click', () => {
-        if (pseudoInput.value.trim() === '') {
-            alert("Veuillez entrer un pseudo pour commencer !");
-            return;
-        }
-        const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value);
-        const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
-        if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) {
-            alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres.");
-            return;
-        }
-        const params = new URLSearchParams();
-        if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(','));
-        if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
-        currentFilters = params.toString();
-        startScreen.style.display = 'none';
-        gameContainer.style.display = 'block';
-        startRound();
-    });
-}
-
-if(restartBtn) restartBtn.addEventListener('click', () => { window.location.reload(); });
-if(volumeSlider) volumeSlider.addEventListener('input', () => { audioPlayer.volume = volumeSlider.value; });
-if(selectAllBtn) selectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true); updateAvailableSongsCount(); });
-if(deselectAllBtn) deselectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = false); updateAvailableSongsCount(); });
-
-// Nouveaux écouteurs pour le leaderboard
+if (submitButton) submitButton.addEventListener('click', checkAnswer);
+if (answerInput) answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
+if (startGameBtn) { startGameBtn.addEventListener('click', () => { if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; } const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value); const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value); if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) { alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres."); return; } const params = new URLSearchParams(); if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(',')); if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(',')); currentFilters = params.toString(); startScreen.style.display = 'none'; gameContainer.style.display = 'block'; startRound(); }); }
+if (restartBtn) { restartBtn.addEventListener('click', () => { isGameOver = false; roundsSurvived = 0; lives = 3; heartFragments = 0; gameOverScreen.style.display = 'none'; startScreen.style.display = 'block'; updateUI(); }); }
+if (volumeSlider) volumeSlider.addEventListener('input', () => { audioPlayer.volume = volumeSlider.value; });
+if (selectAllBtn) selectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true); updateAvailableSongsCount(); });
+if (deselectAllBtn) deselectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = false); updateAvailableSongsCount(); });
 if (viewLeaderboardBtn) viewLeaderboardBtn.addEventListener('click', showLeaderboard);
-if (closeLeaderboardBtn) {
-    closeLeaderboardBtn.addEventListener('click', () => {
-        leaderboardScreen.style.display = 'none';
-        startScreen.style.display = 'block';
-    });
-}
+if (closeLeaderboardBtn) { closeLeaderboardBtn.addEventListener('click', () => { leaderboardScreen.style.display = 'none'; if (isGameOver) { gameOverScreen.style.display = 'block'; } else { startScreen.style.display = 'block'; } }); }
 
 // --- INITIALISATION ---
 updateUI();
 populateFilters();
+
