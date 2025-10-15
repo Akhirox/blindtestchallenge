@@ -61,8 +61,8 @@ function updateUI() {
     if (livesDisplay) livesDisplay.textContent = lives;
     if (heartsDisplay) heartsDisplay.textContent = `${heartFragments}/5`;
     if (timerDisplay) timerDisplay.textContent = timeLeft;
-    if (artistFeedback) artistFeedback.textContent = `Artiste: ${artistIsFound ? '✅' : '❌'}`;
-    if (titleFeedback) titleFeedback.textContent = `Titre: ${titleIsFound ? '✅' : '❌'}`;
+    if (artistFeedback) artistFeedback.innerHTML = `Artiste: <span class="font-bold ${artistIsFound ? 'text-green-500' : 'text-red-500'}">${artistIsFound ? '✔' : '✖'}</span>`;
+    if (titleFeedback) titleFeedback.innerHTML = `Titre: <span class="font-bold ${titleIsFound ? 'text-green-500' : 'text-red-500'}">${titleIsFound ? '✔' : '✖'}</span>`;
     if (timerBar) {
         const percentage = (timeLeft / ROUND_DURATION) * 100;
         timerBar.style.width = `${percentage}%`;
@@ -82,11 +82,9 @@ async function showGameOver() {
     answerScreen.style.display = 'none';
     const finalRounds = roundsSurvived > 0 ? roundsSurvived - 1 : 0;
     finalScoreDisplay.textContent = finalRounds;
-
     if (songSummaryList) {
         songSummaryList.innerHTML = playedSongs.map(song => `<li>${song.artist} - ${song.title}</li>`).join('');
     }
-
     gameOverScreen.style.display = 'block';
     const pseudo = pseudoInput.value || 'Anonyme';
     const score = finalRounds;
@@ -111,10 +109,16 @@ async function showLeaderboard() {
         const top3 = scores.slice(0, 3);
         const others = scores.slice(3);
 
+        // MODIFICATION ICI: On ajoute plus de classes pour l'espacement et l'alignement
         const podiumHTML = top3.map((s, index) => {
-            if (index === 0) return `<div class="text-center order-2"><div class="text-4xl">🥇</div><div class="font-bold text-2xl text-yellow-300">${s.pseudo}</div><div class="text-xl">${s.score} rounds</div></div>`;
-            if (index === 1) return `<div class="text-center order-1 mt-4"><div class="text-3xl">🥈</div><div class="font-bold text-xl text-gray-300">${s.pseudo}</div><div class="text-lg">${s.score} rounds</div></div>`;
-            return `<div class="text-center order-3 mt-6"><div class="text-2xl">🥉</div><div class="font-bold text-lg text-yellow-600">${s.pseudo}</div><div>${s.score} rounds</div></div>`;
+            if (index === 0) { // 1er
+                return `<div class="text-center order-2 mx-4"><div class="text-5xl">🥇</div><div class="font-bold text-3xl text-yellow-300">${s.pseudo}</div><div class="text-2xl">${s.score} rounds</div></div>`;
+            }
+            if (index === 1) { // 2ème
+                return `<div class="text-center order-1 mx-4 self-end"><div class="text-4xl">🥈</div><div class="font-bold text-2xl text-gray-300">${s.pseudo}</div><div class="text-xl">${s.score} rounds</div></div>`;
+            }
+            // 3ème
+            return `<div class="text-center order-3 mx-4 self-end"><div class="text-3xl">🥉</div><div class="font-bold text-xl text-yellow-600">${s.pseudo}</div><div class="text-lg">${s.score} rounds</div></div>`;
         }).join('');
 
         leaderboardPodium.innerHTML = podiumHTML;
@@ -129,6 +133,7 @@ async function showLeaderboard() {
         alert("Le leaderboard n'a pas pu être chargé.");
     }
 }
+
 
 function stopTimer() { clearInterval(roundTimer); }
 
@@ -218,9 +223,7 @@ async function startRound() {
         cleanTitle = parts[1].replace(/-/g, ' ');
         normalizedArtist = normalizeString(cleanArtist);
         normalizedTitle = normalizeString(cleanTitle);
-        
         playedSongs.push({ artist: cleanArtist, title: cleanTitle });
-
         audioPlayer.src = song.url;
         audioPlayer.play();
         startTimer();
@@ -239,40 +242,59 @@ function checkAnswer() {
     updateUI();
     answerInput.value = '';
     answerInput.focus();
-    if (artistIsFound && titleIsFound) { endRound(); }
+    if (artistIsFound && titleIsFound) {
+        endRound();
+    }
 }
 
 // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
 if (submitButton) submitButton.addEventListener('click', checkAnswer);
 if (answerInput) answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
-if (startGameBtn) { startGameBtn.addEventListener('click', () => { 
-    if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; } 
-    playedSongs = [];
-    roundsSurvived = 0;
-    lives = 3;
-    heartFragments = 0;
-    const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value); 
-    const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value); 
-    if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) { alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres."); return; } 
-    const params = new URLSearchParams(); 
-    if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(',')); 
-    if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(',')); 
-    currentFilters = params.toString(); 
-    startScreen.style.display = 'none'; 
-    gameContainer.style.display = 'block'; 
-    startRound(); 
-}); }
-if (restartBtn) { restartBtn.addEventListener('click', () => { 
-    isGameOver = false; 
-    gameOverScreen.style.display = 'none'; 
-    startScreen.style.display = 'block'; 
-}); }
-if (volumeSlider) volumeSlider.addEventListener('input', () => { audioPlayer.volume = volumeSlider.value; });
+if (startGameBtn) {
+    startGameBtn.addEventListener('click', () => {
+        if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; }
+        playedSongs = [];
+        roundsSurvived = 0;
+        lives = 3;
+        heartFragments = 0;
+        const selectedDecades = Array.from(document.querySelectorAll('input[name="decade"]:checked')).map(cb => cb.value);
+        const selectedGenres = Array.from(document.querySelectorAll('input[name="genre"]:checked')).map(cb => cb.value);
+        if (songCountDiv && parseInt(songCountDiv.textContent.split(': ')[1], 10) === 0) { alert("Aucune chanson ne correspond à votre sélection. Veuillez choisir d'autres filtres."); return; }
+        const params = new URLSearchParams();
+        if (selectedDecades.length > 0) params.append('decades', selectedDecades.join(','));
+        if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
+        currentFilters = params.toString();
+        startScreen.style.display = 'none';
+        gameContainer.style.display = 'block';
+        startRound();
+    });
+}
+if (restartBtn) {
+    restartBtn.addEventListener('click', () => {
+        isGameOver = false;
+        gameOverScreen.style.display = 'none';
+        startScreen.style.display = 'block';
+    });
+}
+if (volumeSlider) {
+    volumeSlider.addEventListener('input', () => {
+        audioPlayer.volume = volumeSlider.value;
+    });
+}
 if (selectAllBtn) selectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true); updateAvailableSongsCount(); });
 if (deselectAllBtn) deselectAllBtn.addEventListener('click', () => { document.querySelectorAll('#filter-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = false); updateAvailableSongsCount(); });
 if (viewLeaderboardBtn) viewLeaderboardBtn.addEventListener('click', showLeaderboard);
 if (viewLeaderboardBtnGameover) viewLeaderboardBtnGameover.addEventListener('click', showLeaderboard);
-if (closeLeaderboardBtn) { closeLeaderboardBtn.addEventListener('click', () => { leaderboardScreen.style.display = 'none'; if (isGameOver) { gameOverScreen.style.display = 'block'; } else { startScreen.style.display = 'block'; } }); }
+if (closeLeaderboardBtn) {
+    closeLeaderboardBtn.addEventListener('click', () => {
+        leaderboardScreen.style.display = 'none';
+        if (isGameOver) {
+            gameOverScreen.style.display = 'block';
+        } else {
+            startScreen.style.display = 'block';
+        }
+    });
+}
 
 // --- INITIALISATION ---
 updateUI();
