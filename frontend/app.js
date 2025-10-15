@@ -109,16 +109,31 @@ async function showLeaderboard() {
         const top3 = scores.slice(0, 3);
         const others = scores.slice(3);
 
-        // MODIFICATION ICI: On ajoute plus de classes pour l'espacement et l'alignement
+        // NOUVELLE LOGIQUE D'AFFICHAGE
         const podiumHTML = top3.map((s, index) => {
             if (index === 0) { // 1er
-                return `<div class="text-center order-2 mx-4"><div class="text-5xl">🥇</div><div class="font-bold text-3xl text-yellow-300">${s.pseudo}</div><div class="text-2xl">${s.score} rounds</div></div>`;
+                return `
+                    <div class="text-center order-2 px-4">
+                        <div class="text-5xl">🥇</div>
+                        <div class="font-bold text-3xl text-yellow-300 mt-2">${s.pseudo}</div>
+                        <div class="text-2xl">${s.score} rounds</div>
+                    </div>`;
             }
             if (index === 1) { // 2ème
-                return `<div class="text-center order-1 mx-4 self-end"><div class="text-4xl">🥈</div><div class="font-bold text-2xl text-gray-300">${s.pseudo}</div><div class="text-xl">${s.score} rounds</div></div>`;
+                return `
+                    <div class="text-center order-1 self-end px-4">
+                        <div class="text-4xl">🥈</div>
+                        <div class="font-bold text-2xl text-gray-300 mt-2">${s.pseudo}</div>
+                        <div class="text-xl">${s.score} rounds</div>
+                    </div>`;
             }
             // 3ème
-            return `<div class="text-center order-3 mx-4 self-end"><div class="text-3xl">🥉</div><div class="font-bold text-xl text-yellow-600">${s.pseudo}</div><div class="text-lg">${s.score} rounds</div></div>`;
+            return `
+                    <div class="text-center order-3 self-end px-4">
+                        <div class="text-3xl">🥉</div>
+                        <div class="font-bold text-xl text-yellow-600 mt-2">${s.pseudo}</div>
+                        <div class="text-lg">${s.score} rounds</div>
+                    </div>`;
         }).join('');
 
         leaderboardPodium.innerHTML = podiumHTML;
