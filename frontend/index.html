@@ -6,6 +6,7 @@
     <title>Blind Test Challenge</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -15,44 +16,26 @@
             -webkit-appearance: none;
             background: transparent;
             cursor: pointer;
-            width: 10rem; /* Ajusté pour les écrans mobiles */
+            width: 10rem;
         }
         @media (min-width: 640px) {
             input[type=range] {
                 width: 15rem;
             }
         }
-        input[type=range]::-webkit-slider-runnable-track {
-            height: 8px;
-            background: #374151; /* gray-700 */
-            border-radius: 10px;
-        }
-        input[type=range]::-moz-range-track {
-            height: 8px;
-            background: #374151; /* gray-700 */
-            border-radius: 10px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            margin-top: -4px;
-            background-color: #3B82F6; /* blue-500 */
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-        }
-        input[type=range]::-moz-range-thumb {
-            border: none;
-            background-color: #3B82F6; /* blue-500 */
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-        }
+        input[type=range]::-webkit-slider-runnable-track { height: 8px; background: #374151; border-radius: 10px; }
+        input[type=range]::-moz-range-track { height: 8px; background: #374151; border-radius: 10px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; margin-top: -4px; background-color: #3B82F6; height: 16px; width: 16px; border-radius: 50%; }
+        input[type=range]::-moz-range-thumb { border: none; background-color: #3B82F6; height: 16px; width: 16px; border-radius: 50%; }
     </style>
 </head>
 <body class="bg-gray-900 text-white h-full flex items-center justify-center p-4">
 
     <div class="w-full max-w-2xl mx-auto">
-        <button id="view-leaderboard-btn" class="absolute top-4 right-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105 z-10">🏆 Leaderboard</button>
+        <div class="absolute top-4 right-4 space-x-2 z-10">
+            <button id="rules-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105">Règles</button>
+            <button id="view-leaderboard-btn" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105">🏆 Leaderboard</button>
+        </div>
         <h1 class="text-4xl font-bold mb-6 text-center">Blind Test Challenge</h1>
 
         <!-- Start Screen -->
@@ -87,7 +70,6 @@
                 <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
             </div>
             <audio id="audio-player"></audio>
-            
             <div id="round-content">
                 <div class="w-full bg-gray-700 rounded-full h-4 mb-4 overflow-hidden">
                     <div id="timer-bar" class="bg-green-500 h-4 rounded-full" style="width: 100%;"></div>
@@ -128,9 +110,25 @@
         <!-- Leaderboard Screen -->
         <div id="leaderboard-screen" class="hidden bg-gray-800 p-8 rounded-xl shadow-2xl text-center">
             <h2 class="text-4xl font-bold mb-6">🏆 Leaderboard</h2>
-            <div id="leaderboard-podium" class="flex justify-center items-end space-x-4 mb-6"></div>
-            <ul id="leaderboard-others" class="space-y-2"></ul>
+            <ol id="leaderboard-list" class="space-y-2 text-left"></ol>
             <button id="close-leaderboard-btn" class="mt-6 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">Fermer</button>
+        </div>
+        
+        <!-- Rules Screen -->
+        <div id="rules-screen" class="hidden bg-gray-800 p-8 rounded-xl shadow-2xl text-left">
+            <h2 class="text-3xl font-bold mb-4 text-center">Règles du Jeu</h2>
+            <ul class="list-disc list-inside space-y-3">
+                <li>Le but du jeu est simple : <strong>survivre le plus longtemps possible</strong> en devinant les extraits musicaux.</li>
+                <li>Chaque round dure <strong>30 secondes</strong>. Vous devez trouver l'artiste et le titre de la chanson.</li>
+                <li><strong>Ne rien trouver</strong> ou se tromper vous fait perdre une vie 💔.</li>
+                <li>Trouver <strong>soit l'artiste, soit le titre</strong> vous permet de survivre au round sans perdre de vie.</li>
+                <li>Trouver <strong>l'artiste ET le titre</strong> vous récompense avec un fragment de cœur ❤️‍🔥.</li>
+                <li>Au bout de <strong>5 fragments de cœur</strong>, vous gagnez une vie supplémentaire !</li>
+                <li>Utilisez les <strong>filtres</strong> sur l'écran d'accueil pour personnaliser votre partie en choisissant vos décennies et genres musicaux préférés.</li>
+            </ul>
+            <div class="text-center">
+                <button id="close-rules-btn" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg">Compris !</button>
+            </div>
         </div>
     </div>
     

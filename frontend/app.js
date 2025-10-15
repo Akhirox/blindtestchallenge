@@ -31,13 +31,20 @@ const songCountDiv = document.getElementById('song-count');
 const pseudoInput = document.getElementById('pseudo-input');
 const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
 const leaderboardScreen = document.getElementById('leaderboard-screen');
-const leaderboardPodium = document.getElementById('leaderboard-podium');
-const leaderboardOthers = document.getElementById('leaderboard-others');
+const leaderboardList = document.getElementById('leaderboard-list');
 const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
 const timerBar = document.getElementById('timer-bar');
 const roundDisplay = document.getElementById('round-display');
 const viewLeaderboardBtnGameover = document.getElementById('view-leaderboard-btn-gameover');
 const songSummaryList = document.getElementById('song-summary-list');
+const rulesBtn = document.getElementById('rules-btn');
+const rulesScreen = document.getElementById('rules-screen');
+const closeRulesBtn = document.getElementById('close-rules-btn');
+
+// --- SYNTHS POUR LES EFFETS SONORES ---
+const correctSynth = new Tone.Synth().toDestination();
+const wrongSynth = new Tone.Synth({ oscillator: { type: 'square' } }).toDestination();
+const gameOverSynth = new Tone.PolySynth(Tone.Synth).toDestination();
 
 // --- VARIABLES DU JEU ---
 let lives = 3, heartFragments = 0, roundsSurvived = 0;
@@ -55,6 +62,22 @@ function normalizeString(str) { return str.toLowerCase().normalize("NFD").replac
 function levenshtein(s1, s2) { s1 = s1.toLowerCase(); s2 = s2.toLowerCase(); const costs = []; for (let i = 0; i <= s1.length; i++) { let lastValue = i; for (let j = 0; j <= s2.length; j++) { if (i === 0) costs[j] = j; else { if (j > 0) { let newValue = costs[j - 1]; if (s1.charAt(i - 1) !== s2.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1; costs[j - 1] = lastValue; lastValue = newValue; } } } if (i > 0) costs[s2.length] = lastValue; } return costs[s2.length]; }
 function isSimilar(userInput, correctAnswer) { const userWords = userInput.split(' '); const correctWords = correctAnswer.split(' '); const tolerance = 1; return correctWords.every(correctWord => userWords.some(userWord => levenshtein(userWord, correctWord) <= tolerance)); }
 
+// --- FONCTION POUR JOUER LES SONS ---
+function playSound(soundType) {
+    if (typeof Tone === 'undefined' || Tone.context.state !== 'running') return;
+    const now = Tone.now();
+    if (soundType === 'correct') {
+        correctSynth.triggerAttackRelease("C5", "8n", now);
+    } else if (soundType === 'fullyCorrect') {
+        correctSynth.triggerAttackRelease("C5", "16n", now);
+        correctSynth.triggerAttackRelease("G5", "16n", now + 0.1);
+    } else if (soundType === 'incorrect') {
+        wrongSynth.triggerAttackRelease("C3", "8n", now);
+    } else if (soundType === 'gameOver') {
+        gameOverSynth.triggerAttackRelease(["G4", "E4", "C4"], "4n", now);
+    }
+}
+
 // --- FONCTIONS DU JEU ---
 function updateUI() {
     if (roundDisplay) roundDisplay.textContent = roundsSurvived;
@@ -66,13 +89,9 @@ function updateUI() {
     if (timerBar) {
         const percentage = (timeLeft / ROUND_DURATION) * 100;
         timerBar.style.width = `${percentage}%`;
-        if (percentage < 25) {
-            timerBar.className = 'bg-red-500 h-4 rounded-full transition-all duration-500';
-        } else if (percentage < 50) {
-            timerBar.className = 'bg-yellow-500 h-4 rounded-full transition-all duration-500';
-        } else {
-            timerBar.className = 'bg-green-500 h-4 rounded-full transition-all duration-500';
-        }
+        if (percentage < 25) { timerBar.className = 'bg-red-500 h-4 rounded-full transition-all duration-500'; }
+        else if (percentage < 50) { timerBar.className = 'bg-yellow-500 h-4 rounded-full transition-all duration-500'; }
+        else { timerBar.className = 'bg-green-500 h-4 rounded-full transition-all duration-500'; }
     }
 }
 
@@ -82,10 +101,11 @@ async function showGameOver() {
     answerScreen.style.display = 'none';
     const finalRounds = roundsSurvived > 0 ? roundsSurvived - 1 : 0;
     finalScoreDisplay.textContent = finalRounds;
-    if (songSummaryList) {
-        songSummaryList.innerHTML = playedSongs.map(song => `<li>${song.artist} - ${song.title}</li>`).join('');
-    }
+    if (songSummaryList) { songSummaryList.innerHTML = playedSongs.map(song => `<li>${song.artist} - ${song.title}</li>`).join(''); }
+    
+    playSound('gameOver');
     gameOverScreen.style.display = 'block';
+
     const pseudo = pseudoInput.value || 'Anonyme';
     const score = finalRounds;
     try {
@@ -105,50 +125,25 @@ async function showLeaderboard() {
         const response = await fetch(`${API_URL}/leaderboard`);
         if (!response.ok) throw new Error("Réponse du serveur non valide");
         const scores = await response.json();
-
-        const top3 = scores.slice(0, 3);
-        const others = scores.slice(3);
-
-        // NOUVELLE LOGIQUE D'AFFICHAGE
-        const podiumHTML = top3.map((s, index) => {
-            if (index === 0) { // 1er
-                return `
-                    <div class="text-center order-2 px-4">
-                        <div class="text-5xl">🥇</div>
-                        <div class="font-bold text-3xl text-yellow-300 mt-2">${s.pseudo}</div>
-                        <div class="text-2xl">${s.score} rounds</div>
-                    </div>`;
-            }
-            if (index === 1) { // 2ème
-                return `
-                    <div class="text-center order-1 self-end px-4">
-                        <div class="text-4xl">🥈</div>
-                        <div class="font-bold text-2xl text-gray-300 mt-2">${s.pseudo}</div>
-                        <div class="text-xl">${s.score} rounds</div>
-                    </div>`;
-            }
-            // 3ème
-            return `
-                    <div class="text-center order-3 self-end px-4">
-                        <div class="text-3xl">🥉</div>
-                        <div class="font-bold text-xl text-yellow-600 mt-2">${s.pseudo}</div>
-                        <div class="text-lg">${s.score} rounds</div>
-                    </div>`;
+        const leaderboardHTML = scores.map((s, index) => {
+            let medal = '';
+            let classes = 'p-2 rounded-md bg-gray-700/50 flex justify-between items-center';
+            if (index === 0) { medal = '🥇'; classes += ' text-lg font-bold border-2 border-yellow-400'; }
+            else if (index === 1) { medal = '🥈'; classes += ' text-base font-semibold border border-gray-400'; }
+            else if (index === 2) { medal = '🥉'; classes += ' text-base border border-yellow-600'; }
+            return `<li class="${classes}"><span>${medal} #${index + 1} ${s.pseudo}</span> <span>${s.score} rounds</span></li>`;
         }).join('');
-
-        leaderboardPodium.innerHTML = podiumHTML;
-        leaderboardOthers.innerHTML = others.map((s, index) => `<li class="p-2 rounded-md bg-gray-700/50 flex justify-between"><span>#${index + 4} ${s.pseudo}</span> <span>${s.score} rounds</span></li>`).join('');
-        
+        leaderboardList.innerHTML = leaderboardHTML;
         startScreen.style.display = 'none';
         gameContainer.style.display = 'none';
         gameOverScreen.style.display = 'none';
+        rulesScreen.style.display = 'none';
         leaderboardScreen.style.display = 'block';
     } catch (error) {
         console.error("Impossible de charger le leaderboard:", error);
         alert("Le leaderboard n'a pas pu être chargé.");
     }
 }
-
 
 function stopTimer() { clearInterval(roundTimer); }
 
@@ -189,11 +184,14 @@ function endRound() {
         summary = "Bravo ! Vous avez gagné un fragment de cœur !";
         heartFragments++;
         if (heartFragments >= 5) { lives++; heartFragments = 0; summary += " Vous gagnez une vie supplémentaire !"; }
+        playSound('fullyCorrect');
     } else if (artistIsFound || titleIsFound) {
         summary = "Vous n'avez pas perdu de vie.";
+        playSound('correct');
     } else {
         lives--;
         summary = `Vous perdez une vie. Vies restantes : ${lives}`;
+        playSound('incorrect');
     }
     updateUI();
     if (lives <= 0) { showGameOver(); return; }
@@ -266,7 +264,11 @@ function checkAnswer() {
 if (submitButton) submitButton.addEventListener('click', checkAnswer);
 if (answerInput) answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') checkAnswer(); });
 if (startGameBtn) {
-    startGameBtn.addEventListener('click', () => {
+    startGameBtn.addEventListener('click', async () => {
+        if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
+            await Tone.start();
+            console.log('Audio context started for sound effects.');
+        }
         if (pseudoInput.value.trim() === '') { alert("Veuillez entrer un pseudo pour commencer !"); return; }
         playedSongs = [];
         roundsSurvived = 0;
@@ -303,6 +305,25 @@ if (viewLeaderboardBtnGameover) viewLeaderboardBtnGameover.addEventListener('cli
 if (closeLeaderboardBtn) {
     closeLeaderboardBtn.addEventListener('click', () => {
         leaderboardScreen.style.display = 'none';
+        if (isGameOver) {
+            gameOverScreen.style.display = 'block';
+        } else {
+            startScreen.style.display = 'block';
+        }
+    });
+}
+if (rulesBtn) {
+    rulesBtn.addEventListener('click', () => {
+        startScreen.style.display = 'none';
+        gameContainer.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+        leaderboardScreen.style.display = 'none';
+        rulesScreen.style.display = 'block';
+    });
+}
+if (closeRulesBtn) {
+    closeRulesBtn.addEventListener('click', () => {
+        rulesScreen.style.display = 'none';
         if (isGameOver) {
             gameOverScreen.style.display = 'block';
         } else {
