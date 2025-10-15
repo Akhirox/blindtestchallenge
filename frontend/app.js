@@ -41,10 +41,11 @@ const rulesBtn = document.getElementById('rules-btn');
 const rulesScreen = document.getElementById('rules-screen');
 const closeRulesBtn = document.getElementById('close-rules-btn');
 
-// --- SYNTHS POUR LES EFFETS SONORES ---
-const correctSynth = new Tone.Synth().toDestination();
-const wrongSynth = new Tone.Synth({ oscillator: { type: 'square' } }).toDestination();
-const gameOverSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+// --- SYNTHS POUR LES EFFETS SONORES (VOLUME RÉDUIT) ---
+const synthVolume = -16; // Réduction d'environ 80%
+const correctSynth = new Tone.Synth({ volume: synthVolume }).toDestination();
+const wrongSynth = new Tone.Synth({ oscillator: { type: 'square' }, volume: synthVolume }).toDestination();
+const gameOverSynth = new Tone.PolySynth(Tone.Synth, { volume: synthVolume }).toDestination();
 
 // --- VARIABLES DU JEU ---
 let lives = 3, heartFragments = 0, roundsSurvived = 0;
@@ -84,8 +85,21 @@ function updateUI() {
     if (livesDisplay) livesDisplay.textContent = lives;
     if (heartsDisplay) heartsDisplay.textContent = `${heartFragments}/5`;
     if (timerDisplay) timerDisplay.textContent = timeLeft;
-    if (artistFeedback) artistFeedback.innerHTML = `Artiste: <span class="font-bold ${artistIsFound ? 'text-green-500' : 'text-red-500'}">${artistIsFound ? '✔' : '✖'}</span>`;
-    if (titleFeedback) titleFeedback.innerHTML = `Titre: <span class="font-bold ${titleIsFound ? 'text-green-500' : 'text-red-500'}">${titleIsFound ? '✔' : '✖'}</span>`;
+
+    // CORRECTION: Utilisation d'icônes SVG pour une meilleure compatibilité
+    if (artistFeedback) {
+        const icon = artistIsFound
+            ? `<svg class="inline-block w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
+            : `<svg class="inline-block w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+        artistFeedback.innerHTML = `Artiste: ${icon}`;
+    }
+    if (titleFeedback) {
+        const icon = titleIsFound
+            ? `<svg class="inline-block w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
+            : `<svg class="inline-block w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+        titleFeedback.innerHTML = `Titre: ${icon}`;
+    }
+
     if (timerBar) {
         const percentage = (timeLeft / ROUND_DURATION) * 100;
         timerBar.style.width = `${percentage}%`;
@@ -102,7 +116,7 @@ async function showGameOver() {
     const finalRounds = roundsSurvived > 0 ? roundsSurvived - 1 : 0;
     finalScoreDisplay.textContent = finalRounds;
     if (songSummaryList) { songSummaryList.innerHTML = playedSongs.map(song => `<li>${song.artist} - ${song.title}</li>`).join(''); }
-    
+
     playSound('gameOver');
     gameOverScreen.style.display = 'block';
 
