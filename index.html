@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blind Test Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #E0E0E0; }
+        input[type=range] { -webkit-appearance: none; appearance: none; width: 100px; height: 8px; background: #4A5568; border-radius: 5px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: #1DB954; cursor: pointer; border-radius: 50%; }
+        input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: #1DB954; cursor: pointer; border-radius: 50%; }
+        .filter-group input[type="checkbox"] { accent-color: #1DB954; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl mx-auto">
+        <!-- Le bouton Leaderboard global est retiré d'ici -->
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-8 text-center">Blind Test Challenge</h1>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl">
+            <!-- ... (contenu de start-screen inchangé) ... -->
+            <div class="mb-6">
+                <label for="pseudo-input" class="block text-lg font-semibold mb-2">Entrez votre pseudo</label>
+                <input type="text" id="pseudo-input" maxlength="20" required class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+            <div id="filter-container" class="mb-6 bg-gray-900 p-4 rounded-lg">
+                <h4 class="text-lg font-semibold mb-4">Filtrez les musiques</h4>
+                <div class="filter-buttons mb-4 space-x-4">
+                    <button id="select-all-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">Tout sélectionner</button>
+                    <button id="deselect-all-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">Tout désélectionner</button>
+                </div>
+                <div id="decades-filters" class="filter-group text-left"></div>
+                <div id="genres-filters" class="filter-group text-left"></div>
+                <div id="song-count" class="mt-4 font-bold text-green-400">Chansons disponibles: 0</div>
+            </div>
+            <button id="start-game-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-xl transition-transform transform hover:scale-105">Démarrer la partie</button>
+        </div>
+
+        <!-- Game Container -->
+        <div id="game-container" class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl hidden">
+            <!-- MODIFIÉ: Ajout du numéro de round -->
+            <div id="game-stats" class="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mb-6 text-lg">
+                <span>🎯 Round: <strong id="round-display">0</strong></span>
+                <span class="hidden sm:inline">|</span>
+                <span>❤️ Vies: <strong id="lives-display">3</strong></span>
+                <span class="hidden sm:inline">|</span>
+                <span>✨ Fragments: <strong id="hearts-display">0/5</strong></span>
+                <span class="hidden sm:inline">|</span>
+                <span>⏳ Temps: <strong id="timer-display">30</strong></span>
+                <span class="flex items-center gap-2 mt-2 sm:mt-0 sm:ml-2">🔉 Volume: <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5"></span>
+            </div>
+            <!-- ... (le reste de game-container est inchangé) ... -->
+            <audio id="audio-player" class="hidden"></audio>
+            <div id="round-content">
+                <hr class="border-gray-600 my-6">
+                <div id="timer-bar-container" class="w-full bg-gray-600 rounded-full h-4 mb-4 shadow-inner">
+                    <div id="timer-bar" class="bg-green-500 h-4 rounded-full" style="width: 100%; transition: width 1s linear, background-color 0.5s ease;"></div>
+                </div>
+                <div id="feedback-icons" class="text-2xl font-semibold mb-4 space-x-6">
+                    <span id="artist-feedback">Artiste: ❌</span>
+                    <span id="title-feedback">Titre: ❌</span>
+                </div>
+                <div id="answer-container" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="answer-input" placeholder="Artiste et/ou titre..." class="flex-grow bg-gray-700 text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 text-lg">
+                    <button id="submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors">Valider</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Answer Screen (inchangé) -->
+        <div id="answer-screen" class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl hidden">
+            <h2 class="text-2xl font-bold mb-2">La réponse était :</h2>
+            <h3 id="correct-answer-display" class="text-3xl font-semibold text-green-400 mb-4">Artiste - Titre</h3>
+            <p id="round-summary-message" class="text-xl mb-4">Récapitulatif.</p>
+            <p class="text-gray-400">Prochain round...</p>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl hidden">
+            <h2 class="text-4xl font-bold mb-4">Partie Terminée</h2>
+            <h3 class="text-2xl mb-6">Vous avez survécu <strong id="final-score" class="text-green-400">0</strong> rounds !</h3>
+            <!-- MODIFIÉ: Groupe de boutons -->
+            <div class="flex justify-center gap-4">
+                <button id="restart-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded-lg text-xl transition-transform transform hover:scale-105">Rejouer</button>
+                <button id="view-leaderboard-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-5 rounded-lg text-xl transition-colors">🏆 Leaderboard</button>
+            </div>
+        </div>
+        
+        <!-- Leaderboard Screen -->
+        <div id="leaderboard-screen" class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl hidden">
+            <h2 class="text-3xl font-bold mb-6">🏆 Leaderboard (Top 10)</h2>
+            <!-- MODIFIÉ: Structure pour le podium et le reste -->
+            <div id="leaderboard-podium" class="flex justify-center items-end gap-4 mb-8">
+                <!-- Le top 3 sera injecté ici par le JS -->
+            </div>
+            <ol id="leaderboard-others" class="text-lg space-y-2 text-left max-w-md mx-auto"></ol>
+            <button id="close-leaderboard-btn" class="mt-8 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Fermer</button>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
+
