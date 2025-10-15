@@ -1,24 +1,33 @@
-name: Deploy Frontend to GitHub Pages
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+    name: Deploy Frontend to GitHub Pages
     
-    # NOUVEAU: On donne la permission au script d'écrire sur le dépôt
+    on:
+      push:
+        branches:
+          - main
+    
     permissions:
-      contents: write
-      
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v2
-
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@4.1.4
-        with:
-          branch: gh-pages
-          folder: ./frontend
+      contents: read
+      pages: write
+      id-token: write
+    
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout 🛎️
+            uses: actions/checkout@v4
+    
+          - name: Setup Pages
+            uses: actions/configure-pages@v5
+            # NOUVEAU: On indique à GitHub Pages que le site est dans un sous-dossier
+            with:
+              base_url: /blindtestchallenge/
+    
+          - name: Upload artifact
+            uses: actions/upload-pages-artifact@v3
+            with:
+              path: './frontend'
+    
+          - name: Deploy to GitHub Pages
+            id: deployment
+            uses: actions/deploy-pages@v4
